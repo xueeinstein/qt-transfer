@@ -1,0 +1,41 @@
+<html>
+
+<head>
+    <title>Login</title>
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/main.css">
+    <script type="text/javascript">
+    function check() {
+        console.log("redirect->aa");
+        if(callback.error() != ""){
+            document.getElementById('err').innerHTML = callback.error();
+        }
+    }
+    </script>
+</head>
+
+<body>
+    <div id="err">
+    </div>
+    <div class="container" id="login">
+        <div class="row">
+            <h1 class="text-center login-title">Sign in to continue to <b>qt-transfer</b></h1>
+            <div class="account-wall">
+                <img class="profile-img" src="assets/img/photo.png" alt="">
+                <form class="form-signin" action="http://localhost:8088" method="post">
+                    <input type="text" class="form-control" placeholder="Email" required autofocus>
+                    <input type="password" class="form-control" placeholder="Password" required>
+                    <button class="btn btn-lg btn-primary btn-block" type="submit" onClick="check()">
+                        Sign in</button>
+                    <label class="checkbox pull-left">
+                        <input type="checkbox" value="remember-me"> Remember me
+                    </label>
+                    <a href="#" class="pull-right need-help">Need help? </a><span class="clearfix"></span>
+                </form>
+            </div>
+            <a href="#" class="text-center new-account" onClick="console.log('redirect->signup')">Create an account</a>
+        </div>
+    </div>
+</body>
+
+</html>

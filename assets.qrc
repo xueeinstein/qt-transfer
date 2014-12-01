@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/" >
+        <file>assets/img/photo.png</file>
+        <file>assets/css/bootstrap.min.css</file>
+        <file>assets/css/main.css</file>
+    </qresource>
+</RCC>
