@@ -79,3 +79,10 @@
     display: block;
     margin-top: 10px;
 }
+
+/*
+   err 
+ */
+#err{
+    margin: 0 auto
+}

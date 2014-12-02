@@ -5,15 +5,32 @@
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/main.css">
     <script type="text/javascript">
+    function checkErr() {
+        if (callback.error() != "") {
+            document.getElementById('err').style.display = 'block';
+            document.getElementById('errMsg').innerHTML = callback.error();
+        }
+    }
+
     function mySubmit(){
         var username = document.getElementById('username').value;
         var passwd = document.getElementById('passwd').value;
-        console.log('signup->{"username": "'+username+'", "passwd": "'+passwd+'"}');
+        if (username == "" || passwd == ""){
+            console.log('error->username or passwd cannot be null');
+        } else {
+            console.log('signup->{"username": "'+username+'", "passwd": "'+passwd+'"}');
+        } 
+        checkErr();
     }
     </script>
 </head>
 
 <body>
+    <div class="alert alert-danger" role="alert" id="err" style="display: none">
+        <!-- <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span> -->
+        <span class="sr-only">Error:</span> 
+        <div id="errMsg"></div>
+    </div>
     <div class="container" id="login">
         <div class="row">
             <h1 class="text-center login-title">Sign up to continue to <b>qt-transfer</b></h1>

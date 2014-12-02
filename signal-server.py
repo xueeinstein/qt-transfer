@@ -14,7 +14,7 @@ class UsersModel():
     def addUser(self, name, passwd):
         # check whether use already exist
         if name in self.users:
-            return "error->"
+            return "error->user already exist"
         else:
             self.users[name] = dict()
             self.users[name]['passwd'] = passwd
@@ -26,9 +26,9 @@ class UsersModel():
             if self.users[name]['passwd'] == passwd:
                 return "redirect->ctrlpanel"
             else:
-                return "redirect->login"
+                return "error->password error"
         else:
-            print "no user"
+            return "error->user doesn\'t exist"
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):

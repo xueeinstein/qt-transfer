@@ -47,11 +47,12 @@ class Controller():
     def resolve(self, msg):
         """ classify action """
         msg = str(msg)
-        # print msg
+        print "msg in resolve:", msg
         action = msg.split('->')[0]
+        print "action:", action
         if action == "redirect":
             self.redirect(msg.split('->')[1])
-        elif action == "signup" or "login":
+        elif action in ("signup", "login"):
             self.post(msg)
         elif action == "error":
             self.error(msg.split('->')[1])
@@ -73,7 +74,7 @@ class Controller():
 
     def post(self, msg):
         # get dict msg from json
-        # print msg
+        print "post msg:", msg
         action = msg.split('->')[0]
         attr_json_str = msg.split('->')[1]
         msg_dict = json.loads(attr_json_str)
@@ -84,7 +85,12 @@ class Controller():
         url = "http://" + config.signal_server_host + \
             ":" + str(config.signal_server_port)
         res = urllib2.urlopen(url, encoded_args).read()
+        print "response msg:", res
         return self.resolve(res)
+
+    def error(self, err):
+        self.window.callback.cometError(err)
+        return
 
 class Callback(QObject):
     """Callback to font-end"""
