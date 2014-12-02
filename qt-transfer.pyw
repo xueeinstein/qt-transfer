@@ -34,6 +34,7 @@ class PyJs(QWebPage):
             self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
         else:
             self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
+        return
 
 class Controller():
     """Controller class"""
@@ -47,6 +48,7 @@ class Controller():
             self.redirect(msg.split('->')[1])
         else:
             pass
+        return
 
     def redirect(self, dest):
         if str(dest) in config.router:
@@ -54,10 +56,12 @@ class Controller():
                 html = open(config.router[str(dest)]).read()
             except Exception, e:
                 raise e
-            self.window.view.setHtml(html, QUrl('qrc:/'))
+            # self.window.view.setHtml(html, QUrl('qrc:/'))
+            self.window.customSetHtml(html)
         else:
             self.window.callback.cometError("No router!");
             print "no router"
+        return
 
 class Callback(QObject):
     """Callback to font-end"""
@@ -68,11 +72,12 @@ class Callback(QObject):
     def cometError(self, err):
         self.err = err
         print "cometError"
+        return
 
     @pyqtSlot(result=str)
     def error(self):
         return self.err
-                        
+
 class MainWindow(QWidget):
     """ define main window """
     def __init__(self):
@@ -80,15 +85,32 @@ class MainWindow(QWidget):
         self.view = QWebView(self)
         self.callback = Callback(self)
         self.view.setPage(PyJs(self))
-        self.view.page().mainFrame().\
-            addToJavaScriptWindowObject("callback", self.callback)
+        self.jsObjs = dict()
+        # self.view.page().mainFrame().\
+            # addToJavaScriptWindowObject("callback", self.callback)
         
         self.resize(800, 600)
+
+    def customSetHtml(self, html, jsLink="callback", qtLink="self.callback"):
+        # record into dict
+        self.jsObjs[jsLink] = eval(qtLink)
+        self.view.setHtml(html, QUrl('qrc:/'))
+
+    @pyqtSlot(str, str)
+    def onPopularJavaScriptWindowObject(self):
+        for jsObj in self.jsObjs:
+            self.view.page().mainFrame().\
+                addToJavaScriptWindowObject(jsObj, self.jsObjs[jsObj])
+
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
-    html = open(sys.argv[1]).read()
+    html = open(config.router["login"]).read()
     window.show()
-    window.view.setHtml(html, QUrl('qrc:/'))
+    # window.view.setHtml(html, QUrl('qrc:/'))
+    window.customSetHtml(html)
+    window.view.page().mainFrame().\
+                javaScriptWindowObjectCleared.connect(\
+                    window.onPopularJavaScriptWindowObject)
     sys.exit(app.exec_())
