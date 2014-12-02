@@ -12,14 +12,6 @@ from PyQt4.QtWebKit import *
 import config
 import assets_rc
 
-""" views
-register.html: first-time register, unique username
-about.html: about page of qt-transfer
-help.html: help page of qt-transfer
-controlPanel.html: auto-login and redirect to this page, 
-	graph shows available resources 
-"""
-
 class PyJs(QWebPage):
     """
     Makes it possible to use a Python logger to print javascript console messages
@@ -119,6 +111,8 @@ class MainWindow(QWidget):
             # addToJavaScriptWindowObject("callback", self.callback)
         
         self.resize(800, 600)
+        self.setFixedSize(self.size())
+        self.setWindowTitle('qt-transfer')
 
     def customSetHtml(self, html, jsLink="callback", qtLink="self.callback"):
         # record into dict

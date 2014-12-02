@@ -74,6 +74,7 @@ class Handler(BaseHTTPRequestHandler):
         # self.wfile.write('User-agent: %s\n' % str(self.headers['user-agent']))
         # self.wfile.write('Path: %s\n' % self.path)
         # self.wfile.write('Form data:\n')
+        print self.client_address, self.path
 
         # Echo back information about what was posted in the form
         print form.getvalue('action')
@@ -101,6 +102,6 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 usersData = UsersModel()
 
 if __name__ == '__main__':
-    server = ThreadedHTTPServer(('localhost', 8080), Handler)
+    server = ThreadedHTTPServer(('', 8080), Handler)
     print 'Starting server, use <Ctrl-C> to stop'
     server.serve_forever()
