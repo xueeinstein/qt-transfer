@@ -5,7 +5,11 @@
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/main.css">
     <script type="text/javascript">
-    alert(callback.error());
+    function mySubmit(){
+        var username = document.getElementById('username').value;
+        var passwd = document.getElementById('passwd').value;
+        console.log('signup->{"username": "'+username+'", "passwd": "'+passwd+'"}');
+    }
     </script>
 </head>
 
@@ -16,9 +20,9 @@
             <div class="account-wall">
                 <img class="profile-img" src="assets/img/photo.png" alt="">
                 <form class="form-signin">
-                    <input type="text" class="form-control" placeholder="Email" required autofocus>
-                    <input type="password" class="form-control" placeholder="Password" required>
-                    <button class="btn btn-lg btn-primary btn-block" type="submit">
+                    <input type="text" class="form-control" placeholder="username" id="username" required autofocus>
+                    <input type="password" class="form-control" placeholder="Password" id="passwd" required>
+                    <button class="btn btn-lg btn-primary btn-block" type="submit" onClick="mySubmit()">
                         Sign up</button>
                     <a href="#" class="pull-right need-help">Need help? </a><span class="clearfix"></span>
                 </form>

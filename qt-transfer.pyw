@@ -2,6 +2,9 @@
 
 import sys
 import logging
+import json
+import urllib
+import urllib2
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
@@ -31,7 +34,7 @@ class PyJs(QWebPage):
     def javaScriptConsoleMessage(self, msg, lineNumber, sourceID):
         if sourceID == "qrc:/":
             self.ctrl.resolve(msg)
-            self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
+            # self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
         else:
             self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
         return
@@ -43,25 +46,45 @@ class Controller():
 
     def resolve(self, msg):
         """ classify action """
+        msg = str(msg)
+        # print msg
         action = msg.split('->')[0]
         if action == "redirect":
             self.redirect(msg.split('->')[1])
+        elif action == "signup" or "login":
+            self.post(msg)
+        elif action == "error":
+            self.error(msg.split('->')[1])
         else:
             pass
         return
 
     def redirect(self, dest):
-        if str(dest) in config.router:
+        if dest in config.router:
             try:
-                html = open(config.router[str(dest)]).read()
+                html = open(config.router[dest]).read()
             except Exception, e:
                 raise e
-            # self.window.view.setHtml(html, QUrl('qrc:/'))
             self.window.customSetHtml(html)
         else:
             self.window.callback.cometError("No router!");
             print "no router"
         return
+
+    def post(self, msg):
+        # get dict msg from json
+        # print msg
+        action = msg.split('->')[0]
+        attr_json_str = msg.split('->')[1]
+        msg_dict = json.loads(attr_json_str)
+        msg_dict['action'] = action
+        # print msg_dict
+        # encode and post
+        encoded_args = urllib.urlencode(msg_dict)
+        url = "http://" + config.signal_server_host + \
+            ":" + str(config.signal_server_port)
+        res = urllib2.urlopen(url, encoded_args).read()
+        return self.resolve(res)
 
 class Callback(QObject):
     """Callback to font-end"""

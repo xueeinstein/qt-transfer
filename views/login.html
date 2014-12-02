@@ -11,6 +11,11 @@
             document.getElementById('err').innerHTML = callback.error();
         }
     }
+    function mySubmit(){
+        var username = document.getElementById('username').value;
+        var passwd = document.getElementById('passwd').value;
+        console.log('login->{"username": "'+username+'", "passwd": "'+passwd+'"}');
+    }
     </script>
 </head>
 
@@ -22,10 +27,10 @@
             <h1 class="text-center login-title">Sign in to continue to <b>qt-transfer</b></h1>
             <div class="account-wall">
                 <img class="profile-img" src="assets/img/photo.png" alt="">
-                <form class="form-signin" action="http://localhost:8088" method="post">
-                    <input type="text" class="form-control" placeholder="Email" required autofocus>
-                    <input type="password" class="form-control" placeholder="Password" required>
-                    <button class="btn btn-lg btn-primary btn-block" type="submit" onClick="check()">
+                <form class="form-signin">
+                    <input type="text" class="form-control" placeholder="username" id="username" required autofocus>
+                    <input type="password" class="form-control" placeholder="Password" id="passwd" required>
+                    <button class="btn btn-lg btn-primary btn-block" type="submit" onClick="mySubmit()">
                         Sign in</button>
                     <label class="checkbox pull-left">
                         <input type="checkbox" value="remember-me"> Remember me
