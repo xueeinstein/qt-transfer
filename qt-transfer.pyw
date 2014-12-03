@@ -8,6 +8,7 @@ import urllib
 import urllib2
 import socket
 import time
+import hashlib
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
@@ -61,14 +62,16 @@ class Controller(QObject):
         action = msg.split('->')[0]
         print "action:", action
         if action == "redirect":
-            self.redirect(msg.split('->')[1])
-        elif action in ("signup", "login"):
+            msg_list = msg.split('->')
+            dest = msg_list[1]
+            # if login success, start the daemon process
+            if dest == "ctrlpanel" and len(msg_list) == 3:
+                self.daemon_thread.register(msg_list[2])
+                self.daemon_thread.start()
+            
+            self.redirect(dest)
+        elif action in ("signup", "login", "updateFiles"):
             self.post(msg)
-            # after login, start the daemon process
-            print "begin daemon_thread"
-            self.daemon_thread.register(msg.split('->')[0])
-            self.daemon_thread.start()
-            print "return to main program"
         elif action == "error":
             self.error(msg.split('->')[1])
         else:
@@ -140,6 +143,7 @@ class DaemonThread(QThread):
         while True:
             self.sendUdpHeartBeat("%s:active"%self.id)
             self.recvFromServer()
+            self.scanLocalFiles()
             time.sleep(3)
 
     def register(self, msg):
@@ -152,23 +156,40 @@ class DaemonThread(QThread):
         update localFiles and call http send to update remote record
         """
         # change dir into transferDir
+        # temporarily, only support files in transferDir, no folder
+        # To do: optimize files change, metric by file content md5, not name
+        # To do: msg, could be compressed ! e.g. only show add new files, and delete files
         os.chdir(config.transferDir)
-        files = os.listdir('.')
-        if cmp(files, self.localFiles) != 0:
+        files_list = os.listdir('.')
+        getmd5 = lambda x: hashlib.md5(open(x).read()).hexdigest()
+        msg_dict = dict()
+        msg_dict['name'] = self.id
+        msg_dict['files'] = []
+        for e in files_list:
+            tmp_dict = dict()
+            tmp_dict['name'] = e
+            tmp_dict['key'] = getmd5(e)
+            msg_dict['files'].append(tmp_dict)
+
+        if cmp(files_list, self.localFiles) != 0:
             # local files changed
-            # self.ctrl.post()
-            pass
+            msg = "updateFiles->" + json.dumps(msg_dict)
+            print bcolors.OKBLUE + "To signal server: " + msg + bcolors.ENDC
+            self.emit(SIGNAL("daemonCtrl(QString)"), msg)
+            # update local files record
+            self.localFiles = files_list
         os.chdir('..')
+        return
 
     def sendUdpHeartBeat(self, msg):
         self.sock.sendto(msg, self.addr)
-        print "send UDP heart beat"
+        print bcolors.OKGREEN + "send UDP heart beat" + bcolors.ENDC
         # self.emit(SIGNAL("daemonCtrl(QString)"), "redirect->recvfile")
         return
 
     def recvFromServer(self):
         data, server = self.sock.recvfrom(4096)
-        print data
+        print bcolors.OKGREEN +"Recv: "+ data + bcolors.ENDC
         
 class MainWindow(QWidget):
     """ define main window """
@@ -186,7 +207,6 @@ class MainWindow(QWidget):
     def customSetHtml(self, html, jsLink="callback", qtLink="self.callback"):
         # record into dict
         self.jsObjs[jsLink] = eval(qtLink)
-        print "begin setHtml"
         self.view.setHtml(html, QUrl('qrc:/'))
 
     @pyqtSlot(str, str)

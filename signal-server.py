@@ -25,7 +25,7 @@ class UsersModel():
     def login(self, name, passwd):
         if name in self.users:
             if self.users[name]['passwd'] == passwd:
-                return "redirect->ctrlpanel"
+                return "redirect->ctrlpanel->" + name
             else:
                 return "error->password error"
         else:
@@ -83,17 +83,21 @@ class Handler(BaseHTTPRequestHandler):
         # Echo back information about what was posted in the form
         print form.getvalue('action')
         if "action" in form:
-            if form.getvalue('action') == "signup":
+            action = form.getvalue('action')
+            if  action == "signup":
                 username = form.getvalue('username')
                 passwd = form.getvalue('passwd')
                 # currIP = 
                 msg = usersData.addUser(username, passwd)
                 self.wfile.write(msg)
-            elif form.getvalue('action') == "login":
+            elif action == "login":
                 username = form.getvalue('username')
                 passwd = form.getvalue('passwd')
                 msg = usersData.login(username, passwd)
                 self.wfile.write(msg)
+            elif action == "updateFiles":
+                print type(form.getvalue('name'))
+                print type(form.getvalue('files')), form.getvalue('files')
             else:
                 pass
         else:
