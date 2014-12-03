@@ -2,6 +2,7 @@
 
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
+import socket
 import threading
 import json
 import cgi
@@ -74,7 +75,10 @@ class Handler(BaseHTTPRequestHandler):
         # self.wfile.write('User-agent: %s\n' % str(self.headers['user-agent']))
         # self.wfile.write('Path: %s\n' % self.path)
         # self.wfile.write('Form data:\n')
-        print self.client_address, self.path
+        print "============="
+        print self.client_address[0]
+        print self.client_address[1]
+        print "============="
 
         # Echo back information about what was posted in the form
         print form.getvalue('action')
@@ -82,6 +86,7 @@ class Handler(BaseHTTPRequestHandler):
             if form.getvalue('action') == "signup":
                 username = form.getvalue('username')
                 passwd = form.getvalue('passwd')
+                # currIP = 
                 msg = usersData.addUser(username, passwd)
                 self.wfile.write(msg)
             elif form.getvalue('action') == "login":
@@ -98,10 +103,32 @@ class Handler(BaseHTTPRequestHandler):
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Handle requests in a separate thread."""
+    def __init__(self, addr, handler):
+        self.server = HTTPServer(addr, handler)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.daemonThread = threading.Thread(name="daemon", target=self.daemon)
+        self.daemonThread.setDaemon(True)
+        print "udp recv"
+        self.server_addr = ('0.0.0.0', 1337)
+        print 'starting up on %s port %s' % self.server_addr
+        self.sock.bind(self.server_addr)
+
+    def daemon(self):
+        while True:
+            print '\nwaiting to receive message'
+            data, address = self.sock.recvfrom(4096)
+    
+            print 'received %s bytes from %s' % (len(data), address)
+            if data:
+                sent = self.sock.sendto("Ok", address)
+                print "res Ok"
+
+    def serve_forever(self):
+        self.daemonThread.start()
+        self.server.serve_forever()
 
 usersData = UsersModel()
-
+server_http = ThreadedHTTPServer(('', 8080), Handler)
 if __name__ == '__main__':
-    server = ThreadedHTTPServer(('', 8080), Handler)
     print 'Starting server, use <Ctrl-C> to stop'
-    server.serve_forever()
+    server_http.serve_forever()

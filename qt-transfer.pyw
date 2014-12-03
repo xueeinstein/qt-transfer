@@ -1,16 +1,29 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import logging
 import json
 import urllib
 import urllib2
+import socket
+import time
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
 
 import config
 import assets_rc
+
+class bcolors:
+    """ set print color """
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    BOLD = '\033[1m'
+    ENDC = '\033[0m'
 
 class PyJs(QWebPage):
     """
@@ -31,10 +44,15 @@ class PyJs(QWebPage):
             self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
         return
 
-class Controller():
+class Controller(QObject):
     """Controller class"""
     def __init__(self, window):
+        super(Controller, self).__init__()
         self.window = window
+        # create the side daemon process for controller
+        self.daemon_thread = DaemonThread()
+        # setup signals
+        self.connect(self.daemon_thread, SIGNAL("daemonCtrl(QString)"), self.resolve)
 
     def resolve(self, msg):
         """ classify action """
@@ -46,6 +64,11 @@ class Controller():
             self.redirect(msg.split('->')[1])
         elif action in ("signup", "login"):
             self.post(msg)
+            # after login, start the daemon process
+            print "begin daemon_thread"
+            self.daemon_thread.register(msg.split('->')[0])
+            self.daemon_thread.start()
+            print "return to main program"
         elif action == "error":
             self.error(msg.split('->')[1])
         else:
@@ -99,6 +122,54 @@ class Callback(QObject):
     def error(self):
         return self.err
 
+
+class DaemonThread(QThread):
+    """
+    DaemonProc, to communicate with signal server, 
+    as heart beat and signal exchanger
+    """
+    def __init__(self, parent=None):
+        QThread.__init__(self)
+        # set as daemon process
+        self.id = ""
+        self.addr = (config.signal_server_host, config.signal_server_port_udp)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.localFiles = []
+
+    def run(self):
+        while True:
+            self.sendUdpHeartBeat("%s:active"%self.id)
+            self.recvFromServer()
+            time.sleep(3)
+
+    def register(self, msg):
+        self.id = msg
+        print "register:", msg
+
+    def scanLocalFiles(self):
+        """ 
+        scan local files, if changed,
+        update localFiles and call http send to update remote record
+        """
+        # change dir into transferDir
+        os.chdir(config.transferDir)
+        files = os.listdir('.')
+        if cmp(files, self.localFiles) != 0:
+            # local files changed
+            # self.ctrl.post()
+            pass
+        os.chdir('..')
+
+    def sendUdpHeartBeat(self, msg):
+        self.sock.sendto(msg, self.addr)
+        print "send UDP heart beat"
+        # self.emit(SIGNAL("daemonCtrl(QString)"), "redirect->recvfile")
+        return
+
+    def recvFromServer(self):
+        data, server = self.sock.recvfrom(4096)
+        print data
+        
 class MainWindow(QWidget):
     """ define main window """
     def __init__(self):
@@ -107,8 +178,6 @@ class MainWindow(QWidget):
         self.callback = Callback(self)
         self.view.setPage(PyJs(self))
         self.jsObjs = dict()
-        # self.view.page().mainFrame().\
-            # addToJavaScriptWindowObject("callback", self.callback)
         
         self.resize(800, 600)
         self.setFixedSize(self.size())
@@ -117,6 +186,7 @@ class MainWindow(QWidget):
     def customSetHtml(self, html, jsLink="callback", qtLink="self.callback"):
         # record into dict
         self.jsObjs[jsLink] = eval(qtLink)
+        print "begin setHtml"
         self.view.setHtml(html, QUrl('qrc:/'))
 
     @pyqtSlot(str, str)
@@ -127,6 +197,20 @@ class MainWindow(QWidget):
 
         
 if __name__ == "__main__":
+    print "============================================"
+    print "                 " + bcolors.BOLD + "qt-transfer"+ bcolors.ENDC 
+    print "  "+bcolors.FAIL+"Notice:"+bcolors.ENDC+" this CLI output helps your"
+    print "    "
+    # print "  Notice: this CLI output helps your        "
+    print "  This "+bcolors.OKBLUE+"color"+bcolors.ENDC+" highlights HTTP pipline output"
+    print "     HTTP, controls view render"
+    print "  This "+bcolors.OKGREEN+"color"+bcolors.ENDC+" highlights UDP pipline output"
+    print "     UDP, comet status"
+    print "  This "+bcolors.WARNING+"color"+bcolors.ENDC+" highlights TCP pipline output"
+    print "     TCP, transfer files"
+    print "============================================"
+
+    # render app
     app = QApplication(sys.argv)
     window = MainWindow()
     html = open(config.router["login"]).read()
