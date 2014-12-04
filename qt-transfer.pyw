@@ -9,6 +9,7 @@ import urllib2
 import socket
 import time
 import hashlib
+import select
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
@@ -114,11 +115,14 @@ class Callback(QObject):
     """Callback to font-end"""
     def __init__(self, Qo):
         super(Callback, self).__init__(Qo)
+        self.window = Qo
         self.err = ""
 
     def cometError(self, err):
         self.err = err
         print "cometError"
+        self.window.view.page().mainFrame().\
+            evaluateJavaScript(QString("checkErr()"))
         return
 
     @pyqtSlot(result=str)
@@ -188,16 +192,22 @@ class DaemonThread(QThread):
         return
 
     def recvFromServer(self):
-        data, server = self.sock.recvfrom(4096)
-        print bcolors.OKGREEN +"Recv: "+ data + bcolors.ENDC
+        ready = select.select([self.sock], [], [], 6)
+        if ready[0]:
+            data, server = self.sock.recvfrom(4096)
+            print bcolors.OKGREEN +"Recv: "+ data + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN + "server disconnect" + bcolors.ENDC
+            # alert users
+            self.emit(SIGNAL("daemonCtrl(QString)"), "error->disconnect")
         
 class MainWindow(QWidget):
     """ define main window """
     def __init__(self):
         super(MainWindow, self).__init__()
         self.view = QWebView(self)
-        self.callback = Callback(self)
         self.view.setPage(PyJs(self))
+        self.callback = Callback(self)
         self.jsObjs = dict()
         
         self.resize(800, 600)

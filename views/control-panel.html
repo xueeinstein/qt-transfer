@@ -1,8 +1,23 @@
 <html>
 <head>
 	<title>Control Panel</title>
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/main.css">
+    <script type="text/javascript">
+    function checkErr() {
+        if (callback.error() != "") {
+            document.getElementById('err').style.display = 'block';
+            document.getElementById('errMsg').innerHTML = callback.error();
+        }
+    }
+    </script>
 </head>
 <body>
+	<div class="alert alert-danger" role="alert" id="err" style="display: none">
+        <!-- <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span> -->
+        <span class="sr-only">Error:</span> 
+        <div id="errMsg"></div>
+    </div>
 	<h2>Control Panel</h2>
 </body>
 </html>

@@ -3,9 +3,12 @@
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn
 import socket
+import select
+import time
 import threading
 import json
 import cgi
+import ast
 
 class UsersModel():
     """ Model: define user data structure"""
@@ -19,17 +22,28 @@ class UsersModel():
         else:
             self.users[name] = dict()
             self.users[name]['passwd'] = passwd
+            self.users[name]['files'] = []
+            self.users[name]['status'] = "active"
             print self.users
             return self.login(name, passwd)
 
     def login(self, name, passwd):
         if name in self.users:
             if self.users[name]['passwd'] == passwd:
+                print "new user login!!"
+                print self.users
                 return "redirect->ctrlpanel->" + name
             else:
                 return "error->password error"
         else:
             return "error->user doesn\'t exist"
+
+    def updateFiles(self, name, files):
+        if name in self.users:
+            self.users[name]['files'] = files
+            print "user files update!!"
+            print self.users
+            return
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -96,8 +110,16 @@ class Handler(BaseHTTPRequestHandler):
                 msg = usersData.login(username, passwd)
                 self.wfile.write(msg)
             elif action == "updateFiles":
-                print type(form.getvalue('name'))
-                print type(form.getvalue('files')), form.getvalue('files')
+                # print type(form.getvalue('name'))
+                name = form.getvalue('name')
+                print name
+                # I don't know the reason why here files list str is unicode
+                uStr = form.getvalue('files')
+                files_list = ast.literal_eval(uStr)
+                encode = lambda x: {'name': x['name'].encode('ascii'), 'key': x['key'].encode('ascii')}
+                files_list = [encode(x) for x in files_list]
+                print type(files_list), files_list
+                msg = usersData.updateFiles(name, files_list)
             else:
                 pass
         else:
@@ -110,6 +132,8 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     def __init__(self, addr, handler):
         self.server = HTTPServer(addr, handler)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # set unblock socket
+        # self.sock.setblocking(0)
         self.daemonThread = threading.Thread(name="daemon", target=self.daemon)
         self.daemonThread.setDaemon(True)
         print "udp recv"
@@ -119,13 +143,49 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
     def daemon(self):
         while True:
+            data = ""
+            address = ""
             print '\nwaiting to receive message'
-            data, address = self.sock.recvfrom(4096)
+            ready = select.select([self.sock], [], [], 6)
+            if ready[0]:
+                data, address = self.sock.recvfrom(4096)
     
-            print 'received %s bytes from %s' % (len(data), address)
+            self.updateUserStatus(data, address)
+            print 'received %s bytes from %s: %s' % (len(data), address, data)
             if data:
                 sent = self.sock.sendto("Ok", address)
                 print "res Ok"
+
+    def updateUserStatus(self, data, address):
+        """ 
+        according to data & address, update active time
+        scan all user, check timeout
+        """
+        isChanged = False
+        if data != "" and address != "":
+            data_list = data.split(':')
+            name = data_list[0]
+            userStatus = data_list[1]
+            if userStatus == "active":
+                # update 
+                usersData.users[name]['lastActive'] = time.time()
+        # to give them the same standard, and increase efficiency
+        curr = time.time()
+        for user in usersData.users:
+            if curr - usersData.users[user]['lastActive'] > 8 and\
+                usersData.users[user]['status'] == "active":
+                usersData.users[user]['status'] = "disconnect"
+                isChanged = True
+
+        if isChanged:
+            # broadcast this change
+            print usersData.users
+            pass
+
+        return
+
+    def broadcast(self):
+        pass
 
     def serve_forever(self):
         self.daemonThread.start()
