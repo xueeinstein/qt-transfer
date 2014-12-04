@@ -41,7 +41,7 @@ class PyJs(QWebPage):
     def javaScriptConsoleMessage(self, msg, lineNumber, sourceID):
         if sourceID == "qrc:/":
             self.ctrl.resolve(msg)
-            # self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
+            self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
         else:
             self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
         return
@@ -51,6 +51,8 @@ class Controller(QObject):
     def __init__(self, window):
         super(Controller, self).__init__()
         self.window = window
+        # record last that the file-net data updated, init 0
+        self.lastUpdateTime = 0
         # create the side daemon process for controller
         self.daemon_thread = DaemonThread()
         # setup signals
@@ -75,6 +77,8 @@ class Controller(QObject):
             self.post(msg)
         elif action == "error":
             self.error(msg.split('->')[1])
+        elif action == "data":
+            return msg.split('->')[1]
         else:
             pass
         return
@@ -85,6 +89,15 @@ class Controller(QObject):
                 html = open(config.router[dest]).read()
             except Exception, e:
                 raise e
+            # if it's control-panel, update file-net data
+            if dest == "ctrlpanel":
+                msg = '{"action": "queryFilesData", "lastUpdateTime": 0}'
+                msg = "queryFilesData->" + msg
+                file_net_data = self.post(msg)
+                print "Get file-net data", file_net_data
+                self.lastUpdateTime = time.time()
+                self.window.callback.getFilesNetData(file_net_data)
+                # self.window.callback.refreshFilesNetMap()
             self.window.customSetHtml(html)
         else:
             self.window.callback.cometError("No router!");
@@ -117,6 +130,7 @@ class Callback(QObject):
         super(Callback, self).__init__(Qo)
         self.window = Qo
         self.err = ""
+        self.data = ""
 
     def cometError(self, err):
         self.err = err
@@ -124,6 +138,19 @@ class Callback(QObject):
         self.window.view.page().mainFrame().\
             evaluateJavaScript(QString("checkErr()"))
         return
+
+    def getFilesNetData(self, data):
+        self.data = data
+        return
+
+    def refreshFilesNetMap(self):
+        self.window.view.page().mainFrame().\
+            evaluateJavaScript(QString('render'))
+        return
+
+    @pyqtSlot(result=str)
+    def data(self):
+        return self.data
 
     @pyqtSlot(result=str)
     def error(self):

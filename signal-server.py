@@ -120,11 +120,36 @@ class Handler(BaseHTTPRequestHandler):
                 files_list = [encode(x) for x in files_list]
                 print type(files_list), files_list
                 msg = usersData.updateFiles(name, files_list)
+                self.wfile.write("redirect->ctrlpanel")
+            elif action == "queryFilesData":
+                lastUpdateTime = float(form.getvalue('lastUpdateTime'))
+                print "file-net data lastUpdateTime:", lastUpdateTime
+                if lastUpdateTime < time.time():
+                    newData = self.generateFilesNetData()
+                    print "====new file-net===="
+                    print newData
+                    print "====new file-net===="
+                    self.wfile.write("data->"+newData)
+                else:
+                    print "get file-net error!!!!!!!!!!!"
             else:
                 pass
         else:
             print "no action in form"
         return
+
+    def generateFilesNetData(self):
+        filesNetData = []
+        for i in usersData.users:
+            tmp_dict = dict()
+            tmp_dict['name'] = i
+            tmp_dict['key'] = i
+            tmp_dict['count'] = len(usersData.users[i]['files'])
+            tmp_dict['files'] = usersData.users[i]['files']
+            filesNetData.append(tmp_dict)
+        strJson = json.dumps(filesNetData)
+        return strJson
+
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
