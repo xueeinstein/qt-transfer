@@ -5,6 +5,7 @@
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/main.css">
     <script type="text/javascript" src="assets/js/d3.v3.min.js"></script>
+    <script type="text/javascript" src="assets/js/jquery.min.js"></script>
     <script type="text/javascript" src="assets/js/google-jsapi.js"></script>
     <script type="text/javascript">
     function checkErr() {
@@ -21,7 +22,7 @@
     }
     </script>
     <script type="text/javascript">
-    google.load("jquery", "1");
+    // google.load("jquery", "1");
     var render = google.setOnLoadCallback(function() {
         initialize().then(
             function(control) {
@@ -104,6 +105,7 @@
                             if (control.options.nodeFocus) {
                                 d.isCurrentlyFocused = !d.isCurrentlyFocused;
                                 doTheTreeViz(makeFilteredData(control));
+                                console.log("error->click " + d.name);
                             }
                         }
                     }, control.clickHack);
@@ -517,6 +519,7 @@
             <p id="userInfo" style="display: none">You: <span id="user"></span></p>
             </div>
             <div id="chart"></div>
+
         </div>
     </div>
 </body>
