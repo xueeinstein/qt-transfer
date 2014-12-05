@@ -14,15 +14,32 @@
             document.getElementById('errMsg').innerHTML = callback.error();
         }
     }
+
     function user() {
         if (callback.user() != "") {
             document.getElementById('userInfo').style.display = 'block';
             document.getElementById('user').innerHTML = callback.user();
         }
     }
+    function filePicker(){
+        callback.filePicker();
+    }
+    function showFileInfo(){
+        document.getElementById('fileInfo').innerHTML = callback.fileInfo();
+    }
+    var isDoubleClick = false
+    function chooseUser(receiver){
+        if (!isDoubleClick){
+            document.getElementById('uploader').style.display = 'block';
+            document.getElementById('receiver').innerHTML = receiver;
+            isDoubleClick = true;
+        } else {
+            document.getElementById('uploader').style.display = 'none';
+            isDoubleClick = false;
+        }
+    }
     </script>
     <script type="text/javascript">
-    // google.load("jquery", "1");
     var render = google.setOnLoadCallback(function() {
         initialize().then(
             function(control) {
@@ -31,6 +48,7 @@
             }
         );
     });
+
     function doTheTreeViz(control) {
 
         var svg = control.svg;
@@ -105,7 +123,11 @@
                             if (control.options.nodeFocus) {
                                 d.isCurrentlyFocused = !d.isCurrentlyFocused;
                                 doTheTreeViz(makeFilteredData(control));
-                                console.log("error->click " + d.name);
+                                if (typeof d.files != "undefined") {
+                                    // for users
+                                    chooseUser(d.name);
+                                    // console.log("error->click " + d.name);
+                                }
                             }
                         }
                     }, control.clickHack);
@@ -316,7 +338,7 @@
         var newoptions = {
             nodeLabel: "label",
             nodeResize: "count",
-            height: 400,
+            height: 300,
             nodeFocus: true,
             radius: 10,
             charge: -500
@@ -492,17 +514,19 @@
     }
 
     function getTheRawData() {
-    	var deferred = $.Deferred();
-    	// directly, the data is from the callback object in pyqt
-    	if (callback.data() != "") {
-	    	deferred.resolve(callback.data());
+        var deferred = $.Deferred();
+        // directly, the data is from the callback object in pyqt
+        if (callback.data() != "") {
+            deferred.resolve(callback.data());
             // console.log("error->"+callback.data());
-    	} else {
-    		deferred.reject("error data is null");
+        } else {
+            deferred.reject("error data is null");
             console.log("error->cannot load files data");
-    	}
+        }
         return deferred.promise();
     }
+
+    
     </script>
 </head>
 
@@ -515,11 +539,43 @@
     <div class="container">
         <div class="row">
             <div class="container">
-            <h3><b>Files Network</b></h3>
-            <p id="userInfo" style="display: none">You: <span id="user"></span></p>
+                <h3><b>Files Network</b></h3>
+                <p id="userInfo" style="display: none">You: <span id="user"></span>
+                </p>
             </div>
             <div id="chart"></div>
-
+            <!-- upload files -->
+            <div class="container" id="uploader" style="display: none">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><strong>Upload Files to <span id="receiver"></span></strong>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Standar Form -->
+                        <h4>Select files from your computer</h4>
+                        <form action="" method="post" enctype="multipart/form-data"  id="js-upload-form">
+                            <div class="form-inline">
+                                <div class="form-group">
+                                    <!-- <input type="file" name="files[]" id="js-upload-files" multiple onClick="filePicker()"> -->
+                                    <!-- <button class="btn btn-lg btn-primary btn-block" > -->
+                        <!-- Choose files</button> -->
+                                </div>
+                                <button class="btn btn-sm btn-default" onClick="filePicker()">Select file</button>
+                                <span id="fileInfo"></span>
+                                <button class="btn btn-sm btn-primary" id="js-upload-submit">Upload file</button>
+                            </div>
+                        </form>
+                        <!-- Upload Finished -->
+                        <div class="js-upload-finished">
+                            <h3>Processed files</h3>
+                            <div class="list-group">
+                                <a href="#" class="list-group-item list-group-item-success"><span class="badge alert-success pull-right">Success</span>image-01.jpg</a>
+                                <a href="#" class="list-group-item list-group-item-success"><span class="badge alert-success pull-right">Success</span>image-02.jpg</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /container -->
         </div>
     </div>
 </body>

@@ -138,6 +138,7 @@ class Callback(QObject):
         self.err = ""
         self.data = ""
         self.user = ""
+        self.fileAddr = ""
 
     def cometError(self, err):
         self.err = err
@@ -154,7 +155,6 @@ class Callback(QObject):
         self.user = user
         return
 
-
     @pyqtSlot(result=str)
     def user(self):
         return self.user
@@ -166,6 +166,23 @@ class Callback(QObject):
     @pyqtSlot(result=str)
     def error(self):
         return self.err
+
+    @pyqtSlot(result=str)
+    def fileInfo(self):
+        res = self.fileAddr
+        if self.fileAddr != "":
+            size = os.path.getsize(self.fileAddr)
+            res = "%s %d bytes" %(res, size)
+        return res
+
+    @pyqtSlot()
+    def filePicker(self):
+        fname = QFileDialog.getOpenFileName(self.window, 'Select file')
+        if fname:
+            # print "selected file:", type(fname), fname
+            self.fileAddr = str(fname)
+            self.window.view.page().mainFrame().\
+                evaluateJavaScript(QString("showFileInfo()"))
 
 
 class DaemonThread(QThread):
