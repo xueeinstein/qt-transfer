@@ -204,7 +204,7 @@ class DaemonThread(QThread):
             self.sendUdpHeartBeat("%s:active"%self.id)
             self.recvFromServer()
             self.scanLocalFiles()
-            time.sleep(3)
+            time.sleep(2)
 
     def register(self, msg):
         self.id = msg

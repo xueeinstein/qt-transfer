@@ -26,6 +26,7 @@
     }
     function showFileInfo(){
         document.getElementById('fileInfo').innerHTML = callback.fileInfo();
+        document.getElementById('uploadButton').disabled = false;
     }
     var isDoubleClick = false
     function chooseUser(receiver){
@@ -123,7 +124,7 @@
                             if (control.options.nodeFocus) {
                                 d.isCurrentlyFocused = !d.isCurrentlyFocused;
                                 doTheTreeViz(makeFilteredData(control));
-                                if (typeof d.files != "undefined") {
+                                if (typeof d.files != "undefined" & d.name != callback.user()) {
                                     // for users
                                     chooseUser(d.name);
                                     // console.log("error->click " + d.name);
@@ -561,7 +562,7 @@
                                 </div>
                                 <button class="btn btn-sm btn-default" onClick="filePicker()">Select file</button>
                                 <span id="fileInfo"></span>
-                                <button class="btn btn-sm btn-primary" id="js-upload-submit">Upload file</button>
+                                <button id="uploadButton" class="btn btn-sm btn-primary" disabled onClick="console.log('error->click')">Upload file</button>
                             </div>
                         </form>
                         <!-- Upload Finished -->
