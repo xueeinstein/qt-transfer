@@ -51,6 +51,7 @@ class Controller(QObject):
     def __init__(self, window):
         super(Controller, self).__init__()
         self.window = window
+        self.dir = os.getcwd()
         # record last that the file-net data updated, init 0
         self.lastUpdateTime = 0
         # create the side daemon process for controller
@@ -69,6 +70,8 @@ class Controller(QObject):
             dest = msg_list[1]
             # if login success, start the daemon process
             if dest == "ctrlpanel" and len(msg_list) == 3:
+                print "daemon_thread start..."
+                self.window.callback.registerUser(msg_list[2])
                 self.daemon_thread.register(msg_list[2])
                 self.daemon_thread.start()
             
@@ -86,7 +89,9 @@ class Controller(QObject):
     def redirect(self, dest):
         if dest in config.router:
             try:
-                html = open(config.router[dest]).read()
+                print os.getcwd()
+                viewDir = self.dir + "/" + config.router[dest]
+                html = open(viewDir).read()
             except Exception, e:
                 raise e
             # if it's control-panel, update file-net data
@@ -96,8 +101,9 @@ class Controller(QObject):
                 file_net_data = self.post(msg)
                 print "Get file-net data", file_net_data
                 self.lastUpdateTime = time.time()
+                # record files update time in daemon thread
+                self.daemon_thread.updateFilesTime(self.lastUpdateTime)
                 self.window.callback.getFilesNetData(file_net_data)
-                # self.window.callback.refreshFilesNetMap()
             self.window.customSetHtml(html)
         else:
             self.window.callback.cometError("No router!");
@@ -131,6 +137,7 @@ class Callback(QObject):
         self.window = Qo
         self.err = ""
         self.data = ""
+        self.user = ""
 
     def cometError(self, err):
         self.err = err
@@ -143,10 +150,14 @@ class Callback(QObject):
         self.data = data
         return
 
-    def refreshFilesNetMap(self):
-        self.window.view.page().mainFrame().\
-            evaluateJavaScript(QString('render'))
+    def registerUser(self, user):
+        self.user = user
         return
+
+
+    @pyqtSlot(result=str)
+    def user(self):
+        return self.user
 
     @pyqtSlot(result=str)
     def data(self):
@@ -169,6 +180,7 @@ class DaemonThread(QThread):
         self.addr = (config.signal_server_host, config.signal_server_port_udp)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.localFiles = []
+        self.filesDataLastUpdate = 0
 
     def run(self):
         while True:
@@ -180,6 +192,9 @@ class DaemonThread(QThread):
     def register(self, msg):
         self.id = msg
         print "register:", msg
+
+    def updateFilesTime(self, time):
+        self.filesDataLastUpdate = time
 
     def scanLocalFiles(self):
         """ 
@@ -202,6 +217,7 @@ class DaemonThread(QThread):
             tmp_dict['key'] = getmd5(e)
             msg_dict['files'].append(tmp_dict)
 
+        os.chdir('..')
         if cmp(files_list, self.localFiles) != 0:
             # local files changed
             msg = "updateFiles->" + json.dumps(msg_dict)
@@ -209,7 +225,6 @@ class DaemonThread(QThread):
             self.emit(SIGNAL("daemonCtrl(QString)"), msg)
             # update local files record
             self.localFiles = files_list
-        os.chdir('..')
         return
 
     def sendUdpHeartBeat(self, msg):
@@ -218,11 +233,16 @@ class DaemonThread(QThread):
         # self.emit(SIGNAL("daemonCtrl(QString)"), "redirect->recvfile")
         return
 
+
     def recvFromServer(self):
         ready = select.select([self.sock], [], [], 6)
         if ready[0]:
             data, server = self.sock.recvfrom(4096)
             print bcolors.OKGREEN +"Recv: "+ data + bcolors.ENDC
+            if data != "Ok":
+                serverTime = float(data)
+                if serverTime > self.filesDataLastUpdate:
+                    self.emit(SIGNAL("daemonCtrl(QString)"), "redirect->ctrlpanel")
         else:
             print bcolors.OKGREEN + "server disconnect" + bcolors.ENDC
             # alert users

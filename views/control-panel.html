@@ -13,24 +13,23 @@
             document.getElementById('errMsg').innerHTML = callback.error();
         }
     }
+    function user() {
+        if (callback.user() != "") {
+            document.getElementById('userInfo').style.display = 'block';
+            document.getElementById('user').innerHTML = callback.user();
+        }
+    }
     </script>
     <script type="text/javascript">
     google.load("jquery", "1");
     var render = google.setOnLoadCallback(function() {
         initialize().then(
             function(control) {
+                user();
                 doTheTreeViz(control);
             }
         );
     });
-
-    // function render(){
-    //     initialize().then(
-    //         function(control) {
-    //             doTheTreeViz(control);
-    //         }
-    //     );
-    // }
     function doTheTreeViz(control) {
 
         var svg = control.svg;
@@ -513,7 +512,10 @@
     </div>
     <div class="container">
         <div class="row">
+            <div class="container">
             <h3><b>Files Network</b></h3>
+            <p id="userInfo" style="display: none">You: <span id="user"></span></p>
+            </div>
             <div id="chart"></div>
         </div>
     </div>

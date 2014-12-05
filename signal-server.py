@@ -14,6 +14,7 @@ class UsersModel():
     """ Model: define user data structure"""
     def __init__(self):
         self.users = dict()
+        self.userFilesUpate = False
 
     def addUser(self, name, passwd):
         # check whether use already exist
@@ -24,12 +25,14 @@ class UsersModel():
             self.users[name]['passwd'] = passwd
             self.users[name]['files'] = []
             self.users[name]['status'] = "active"
+            self.users[name]['lastActive'] = 0 # mark as just login
             print self.users
             return self.login(name, passwd)
 
     def login(self, name, passwd):
         if name in self.users:
             if self.users[name]['passwd'] == passwd:
+                self.users[name]['status'] = "active"
                 print "new user login!!"
                 print self.users
                 return "redirect->ctrlpanel->" + name
@@ -41,6 +44,7 @@ class UsersModel():
     def updateFiles(self, name, files):
         if name in self.users:
             self.users[name]['files'] = files
+            self.userFilesUpate = True
             print "user files update!!"
             print self.users
             return
@@ -141,12 +145,13 @@ class Handler(BaseHTTPRequestHandler):
     def generateFilesNetData(self):
         filesNetData = []
         for i in usersData.users:
-            tmp_dict = dict()
-            tmp_dict['name'] = i
-            tmp_dict['key'] = i
-            tmp_dict['count'] = len(usersData.users[i]['files'])
-            tmp_dict['files'] = usersData.users[i]['files']
-            filesNetData.append(tmp_dict)
+            if usersData.users[i]['status'] == "active":
+                tmp_dict = dict()
+                tmp_dict['name'] = i
+                tmp_dict['key'] = i
+                tmp_dict['count'] = len(usersData.users[i]['files'])
+                tmp_dict['files'] = usersData.users[i]['files']
+                filesNetData.append(tmp_dict)
         strJson = json.dumps(filesNetData)
         return strJson
 
@@ -167,6 +172,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
         self.sock.bind(self.server_addr)
 
     def daemon(self):
+        # counter, record total board casted users 
         while True:
             data = ""
             address = ""
@@ -193,24 +199,39 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
             userStatus = data_list[1]
             if userStatus == "active":
                 # update 
+                if usersData.users[name]['lastActive'] == 0:
+                    # user just login 
+                    isChanged = True
                 usersData.users[name]['lastActive'] = time.time()
+                usersData.users[name]['address'] = address
         # to give them the same standard, and increase efficiency
         curr = time.time()
+        # disconnect update
         for user in usersData.users:
             if curr - usersData.users[user]['lastActive'] > 8 and\
                 usersData.users[user]['status'] == "active":
                 usersData.users[user]['status'] = "disconnect"
                 isChanged = True
+        # files update
+        if usersData.userFilesUpate:
+            isChanged = True
+            usersData.userFilesUpate = False
 
         if isChanged:
             # broadcast this change
+            self.broadcast(time.time())
             print usersData.users
-            pass
 
         return
 
-    def broadcast(self):
-        pass
+    def broadcast(self, time):
+        # set broadcast times
+        counter = 3
+        for j in range(counter):
+            for i in usersData.users:
+                if usersData.users[i]['status'] == "active":
+                    self.sock.sendto(str(time), usersData.users[i]['address'])
+        return
 
     def serve_forever(self):
         self.daemonThread.start()
