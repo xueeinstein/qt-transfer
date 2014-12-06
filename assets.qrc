@@ -6,5 +6,7 @@
         <file>assets/js/d3.v3.min.js</file>
         <file>assets/js/jquery.min.js</file>
         <file>assets/js/google-jsapi.js</file>
+        <file>assets/js/bootstrap.min.js</file>
+        <file>assets/js/bootstrap-dialog.min.js</file>
     </qresource>
 </RCC>

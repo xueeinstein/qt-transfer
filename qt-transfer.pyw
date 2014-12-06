@@ -82,6 +82,73 @@ class Controller(QObject):
             self.error(msg.split('->')[1])
         elif action == "data":
             return msg.split('->')[1]
+        elif action == "sendFile":
+            # user post to call receiver from sg-server
+            self.post(msg)
+            return
+        elif action == "cometQuery":
+            self.window.callback.alertQueries(msg.split('->')[1])
+        elif action == "accept":
+            # get sender address
+            q = self.window.callback.query
+            q = json.loads(q)[0]
+            qr = q['address']
+            sender = q['sender']
+            queryAddr = (qr[0].encode('ascii'), qr[1])
+            print "sender address: ", queryAddr
+            # new udp socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # send package to sender
+            for i in range(4):
+                sock.sendto("Ok->", queryAddr)
+            # create TCP server
+            tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            binding_addr = ('localhost', 8000)
+            tcp_sock.bind(binding_addr)
+            tcp_sock.listen(1)
+            # send res to signal server
+            res = 'accept->{"sender": "'+sender+'"}'
+            self.post(res)
+            time_1 = time.time()
+            while True:
+                print "Waiting for file..."
+                connection, client_addr = tcp_sock.accept()
+                print "accept..."
+                if time.time() - time_1 > 100:
+                    print "TCP server wait time out..."
+                    # time out = 10 s
+                    break
+                writefile = open('receive-file', 'wb')
+                # connect success, receive file
+                try:
+                    while True:
+                        data = connection.recv(1024)
+                        if data.endswith(b'FIN'):
+                            # save file
+                            writefile.write(data[:-3])
+                            break
+                        writefile.write(data)
+                    connection.send(b'ACK')
+                finally:
+                    tcp_sock.close()
+                    writefile.close()
+
+        elif action == "send":
+            # addr = (msg.split('->')[1], msg.split('->')[2])
+            print "begin send file..."
+            addr = ('localhost', 8000)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sendFile_addr = self.window.callback.fileAddr
+            sock.connect(addr)
+            data = open(sendFile_addr, 'rb').read()
+            sock.sendall(data)
+            sock.send(bytes('FIN'))
+            # sock.send(bytes('FIN', 'utf8'))
+            print "wait to get Acknowledgement.."
+            # Get Acknowledgement
+            sock.recv(6)
+            print "got Acknowledgement"
+            sock.close()
         else:
             pass
         return
@@ -139,6 +206,7 @@ class Callback(QObject):
         self.data = ""
         self.user = ""
         self.fileAddr = ""
+        self.query = ""
 
     def cometError(self, err):
         self.err = err
@@ -146,6 +214,16 @@ class Callback(QObject):
         self.window.view.page().mainFrame().\
             evaluateJavaScript(QString("checkErr()"))
         return
+
+    def alertQueries(self, query):
+        if  self.query == query:
+            # repeated query
+            pass
+        else:
+            self.query = query
+            self.window.view.page().mainFrame().\
+                evaluateJavaScript(QString("alertQueries()"))
+
 
     def getFilesNetData(self, data):
         self.data = data
@@ -160,6 +238,10 @@ class Callback(QObject):
         return self.user
 
     @pyqtSlot(result=str)
+    def query(self):
+        return self.query
+
+    @pyqtSlot(result=str)
     def data(self):
         return self.data
 
@@ -172,7 +254,7 @@ class Callback(QObject):
         res = self.fileAddr
         if self.fileAddr != "":
             size = os.path.getsize(self.fileAddr)
-            res = "%s %d bytes" %(res, size)
+            res = "%s %dbytes" %(res, size)
         return res
 
     @pyqtSlot()
@@ -183,6 +265,16 @@ class Callback(QObject):
             self.fileAddr = str(fname)
             self.window.view.page().mainFrame().\
                 evaluateJavaScript(QString("showFileInfo()"))
+
+    @pyqtSlot(str)
+    def sendProcess(self, receiver):
+        pass
+
+class TCPthread(QThread):
+    """ TCP thread, to send or receive using TCP """
+    def __init__(self, host, port, parent=None):
+        QThread.__init__(self)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
 class DaemonThread(QThread):
@@ -198,9 +290,12 @@ class DaemonThread(QThread):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.localFiles = []
         self.filesDataLastUpdate = 0
+        self.query = ""
 
     def run(self):
         while True:
+            self.sendUdpHeartBeat("%s:active"%self.id)
+            self.recvFromServer()
             self.sendUdpHeartBeat("%s:active"%self.id)
             self.recvFromServer()
             self.scanLocalFiles()
@@ -250,16 +345,22 @@ class DaemonThread(QThread):
         # self.emit(SIGNAL("daemonCtrl(QString)"), "redirect->recvfile")
         return
 
-
     def recvFromServer(self):
-        ready = select.select([self.sock], [], [], 6)
+        ready = select.select([self.sock], [], [], 10)
         if ready[0]:
             data, server = self.sock.recvfrom(4096)
             print bcolors.OKGREEN +"Recv: "+ data + bcolors.ENDC
-            if data != "Ok":
-                serverTime = float(data)
+            data_list = data.split('->')
+            if data_list[0] != "Ok":
+                serverTime = float(data_list[0])
                 if serverTime > self.filesDataLastUpdate:
                     self.emit(SIGNAL("daemonCtrl(QString)"), "redirect->ctrlpanel")
+            else:
+                if data_list[1] == "query":
+                    # here, get some people query to send file
+                    self.emit(SIGNAL("daemonCtrl(QString)"), "cometQuery->"+data_list[2])
+                elif data_list[1] == "accept":
+                    self.emit(SIGNAL("daemonCtrl(QString)"), "send->"+data_list[2]+"->"+data_list[3])
         else:
             print bcolors.OKGREEN + "server disconnect" + bcolors.ENDC
             # alert users

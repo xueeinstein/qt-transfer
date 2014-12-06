@@ -24,6 +24,8 @@ class UsersModel():
             self.users[name] = dict()
             self.users[name]['passwd'] = passwd
             self.users[name]['files'] = []
+            self.users[name]['fileFrom'] = []
+            self.users[name]['fileRes'] = ""
             self.users[name]['status'] = "active"
             self.users[name]['lastActive'] = 0 # mark as just login
             print self.users
@@ -136,6 +138,15 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write("data->"+newData)
                 else:
                     print "get file-net error!!!!!!!!!!!"
+            elif action == "sendFile":
+                # call receiver through recording receivers' fileFrom
+                receiver = form.getvalue('receiver')
+                sender = form.getvalue('sender')
+                usersData.users[receiver]['fileFrom'].append(sender)
+                # self.wfile.write()
+            elif action == "accept":
+                sender = form.getvalue('sender')
+                usersData.users[sender]['fileRes'] = "accept"
             else:
                 pass
         else:
@@ -173,6 +184,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
     def daemon(self):
         # counter, record total board casted users 
+        # clients diagram in format: 'name:active'
         while True:
             data = ""
             address = ""
@@ -184,8 +196,30 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
             self.updateUserStatus(data, address)
             print 'received %s bytes from %s: %s' % (len(data), address, data)
             if data:
-                sent = self.sock.sendto("Ok", address)
-                print "res Ok"
+                user = data.split(':')[0]
+                if len(usersData.users[user]['fileFrom']) != 0:
+                    # here, this user got some send-file query
+                    tmp_list = []
+                    for i in usersData.users[user]['fileFrom']:
+                        tmp_dict = dict()
+                        tmp_dict['sender'] = i
+                        tmp_dict['address'] = usersData.users[i]['address']
+                        tmp_list.append(tmp_dict)
+                    tmp_str = json.dumps(tmp_list)
+                    for j in range(4):
+                        # try multi-times
+                        sent = self.sock.sendto("Ok->query->"+tmp_str, address)
+                    usersData.users[user]['fileFrom'] = []
+                else:
+                    sent = self.sock.sendto("Ok->", address)
+                    print "res Ok"
+
+                if usersData.users[user]['fileRes'] == "accept":
+                    receiverAddr = usersData.users[user]['address'][0] + "->" +\
+                        str(usersData.users[user]['address'][1])
+                    for i in range(1):
+                        sent = self.sock.sendto("Ok->accept->"+receiverAddr, address)
+                    usersData.users[user]['fileRes'] = ""
 
     def updateUserStatus(self, data, address):
         """ 
