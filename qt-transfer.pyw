@@ -89,57 +89,81 @@ class Controller(QObject):
         elif action == "cometQuery":
             self.window.callback.alertQueries(msg.split('->')[1])
         elif action == "accept":
-            # get sender address
             q = self.window.callback.query
             q = json.loads(q)[0]
-            qr = q['address']
             sender = q['sender']
-            queryAddr = (qr[0].encode('ascii'), qr[1])
-            print "sender address: ", queryAddr
-            # new udp socket
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # send package to sender
-            for i in range(4):
-                sock.sendto("Ok->", queryAddr)
-            # create TCP server
-            tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            binding_addr = ('localhost', 8000)
-            tcp_sock.bind(binding_addr)
-            tcp_sock.listen(1)
+            addr = (config.signal_server_host, 8888)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(addr)
+            print "connect TUN OK...."
             # send res to signal server
             res = 'accept->{"sender": "'+sender+'"}'
             self.post(res)
-            time_1 = time.time()
+            writefile = open('receive-file', 'wb')
+            print "wait to recv file..."
             while True:
-                print "Waiting for file..."
-                connection, client_addr = tcp_sock.accept()
-                print "accept..."
-                if time.time() - time_1 > 100:
-                    print "TCP server wait time out..."
-                    # time out = 10 s
+                data = sock.recv(1024)
+                if data.endswith(b'FIN'):
+                    writefile.write(data[:-3])
                     break
-                writefile = open('receive-file', 'wb')
-                # connect success, receive file
-                try:
-                    while True:
-                        data = connection.recv(1024)
-                        if data.endswith(b'FIN'):
-                            # save file
-                            writefile.write(data[:-3])
-                            break
-                        writefile.write(data)
-                    connection.send(b'ACK')
-                finally:
-                    tcp_sock.close()
-                    writefile.close()
+                writefile.write(data)
+                print "save...."
+            sock.send(b'ACK')
+            print 
+            writefile.close()
+            # # get sender address
+            # q = self.window.callback.query
+            # q = json.loads(q)[0]
+            # qr = q['address']
+            # sender = q['sender']
+            # queryAddr = (qr[0].encode('ascii'), qr[1])
+            # print "sender address: ", queryAddr
+            # # new udp socket
+            # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # # send package to sender
+            # for i in range(4):
+            #     sock.sendto("Ok->", queryAddr)
+            # # create TCP server
+            # tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # binding_addr = ('localhost', 8000)
+            # tcp_sock.bind(binding_addr)
+            # tcp_sock.listen(1)
+            # # send res to signal server
+            # res = 'accept->{"sender": "'+sender+'"}'
+            # self.post(res)
+            # time_1 = time.time()
+            # while True:
+            #     print "Waiting for file..."
+            #     connection, client_addr = tcp_sock.accept()
+            #     print "accept...", client_addr
+            #     if time.time() - time_1 > 100:
+            #         print "TCP server wait time out..."
+            #         # time out = 10 s
+            #         break
+            #     writefile = open('receive-file', 'wb')
+            #     # connect success, receive file
+            #     try:
+            #         while True:
+            #             data = connection.recv(1024)
+            #             if data.endswith(b'FIN'):
+            #                 # save file
+            #                 writefile.write(data[:-3])
+            #                 break
+            #             writefile.write(data)
+            #         connection.send(b'ACK')
+            #     finally:
+            #         tcp_sock.close()
+            #         writefile.close()
+            #     break
 
         elif action == "send":
             # addr = (msg.split('->')[1], msg.split('->')[2])
             print "begin send file..."
-            addr = ('localhost', 8000)
+            addr = (config.signal_server_host, 8000)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sendFile_addr = self.window.callback.fileAddr
             sock.connect(addr)
+            print "connect TUN OK..."
             data = open(sendFile_addr, 'rb').read()
             sock.sendall(data)
             sock.send(bytes('FIN'))
@@ -269,13 +293,6 @@ class Callback(QObject):
     @pyqtSlot(str)
     def sendProcess(self, receiver):
         pass
-
-class TCPthread(QThread):
-    """ TCP thread, to send or receive using TCP """
-    def __init__(self, host, port, parent=None):
-        QThread.__init__(self)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 
 class DaemonThread(QThread):
     """

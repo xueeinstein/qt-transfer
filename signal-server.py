@@ -10,6 +10,8 @@ import json
 import cgi
 import ast
 
+from tun import *
+
 class UsersModel():
     """ Model: define user data structure"""
     def __init__(self):
@@ -140,9 +142,11 @@ class Handler(BaseHTTPRequestHandler):
                     print "get file-net error!!!!!!!!!!!"
             elif action == "sendFile":
                 # call receiver through recording receivers' fileFrom
+                tmp_thread = Tun(8000, 8888)
                 receiver = form.getvalue('receiver')
                 sender = form.getvalue('sender')
                 usersData.users[receiver]['fileFrom'].append(sender)
+                tmp_thread.tun.start()
                 # self.wfile.write()
             elif action == "accept":
                 sender = form.getvalue('sender')
@@ -165,7 +169,6 @@ class Handler(BaseHTTPRequestHandler):
                 filesNetData.append(tmp_dict)
         strJson = json.dumps(filesNetData)
         return strJson
-
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
