@@ -145,7 +145,8 @@ class Handler(BaseHTTPRequestHandler):
                 tmp_thread = Tun(8000, 8888)
                 receiver = form.getvalue('receiver')
                 sender = form.getvalue('sender')
-                usersData.users[receiver]['fileFrom'].append(sender)
+                filename = form.getvalue('filename')
+                usersData.users[receiver]['fileFrom'].append(sender+'->'+filename)
                 tmp_thread.tun.start()
                 # self.wfile.write()
             elif action == "accept":
@@ -205,8 +206,10 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
                     tmp_list = []
                     for i in usersData.users[user]['fileFrom']:
                         tmp_dict = dict()
-                        tmp_dict['sender'] = i
-                        tmp_dict['address'] = usersData.users[i]['address']
+                        sender = i.split('->')[0]
+                        tmp_dict['sender'] = sender
+                        tmp_dict['filename'] = i.split('->')[1]
+                        tmp_dict['address'] = usersData.users[sender]['address']
                         tmp_list.append(tmp_dict)
                     tmp_str = json.dumps(tmp_list)
                     for j in range(4):

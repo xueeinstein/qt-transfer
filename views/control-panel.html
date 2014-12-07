@@ -17,6 +17,14 @@
         }
     }
 
+    function succMsg() {
+        if (callback.getsuccMsg() != "") {
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('succMsg').innerHTML = callback.getsuccMsg();
+            $('success').fadeOut(2000);
+        }
+    }
+
     function user() {
         if (callback.user() != "") {
             document.getElementById('userInfo').style.display = 'block';
@@ -38,7 +46,10 @@
         // callback.send(receiver);
         var sender = callback.user();
         var filePath = callback.fileInfo().split(' ')[0];
-        var msg = 'sendFile->{"sender": "' + sender + '", "receiver": "' + receiver + '", "filePath": "' + filePath + '"}';
+        // for Linux, file path in format '/../'
+        filePath = filePath.split('/');
+        var filename = filePath[filePath.length - 1];
+        var msg = 'sendFile->{"sender": "' + sender + '", "receiver": "' + receiver + '", "filename": "' + filename + '"}';
         console.log(msg);
     }
 
@@ -46,7 +57,7 @@
         var queries = JSON.parse(callback.query());
         for (i = 0; i < queries.length; i++) {
             var $textAndPic = $('<div></div>');
-            $textAndPic.append('Hi, ' + queries[i]['sender'] + ' wants to share file with you <br />');
+            $textAndPic.append('Hi, <b>' + queries[i]['sender'] + '</b> wants to share file <b>' + queries[i]['filename'] + '</b> with you <br />');
             BootstrapDialog.show({
                 title: 'Notification',
                 message: $textAndPic,
@@ -67,6 +78,7 @@
         }
     }
     var isDoubleClick = false
+
     function chooseUser(receiver) {
         if (!isDoubleClick) {
             document.getElementById('uploader').style.display = 'block';
@@ -573,6 +585,11 @@
         <span class="sr-only">Error:</span>
         <div id="errMsg"></div>
     </div>
+    <div class="alert alert-success" role="alert" id="success" style="display: none">
+        <!-- <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span> -->
+        <div id="succMsg"></div>
+    </div>
+
     <div class="container">
         <div class="row">
             <div class="container">
@@ -582,6 +599,12 @@
             </div>
             <div id="chart"></div>
             <!-- upload files -->
+            <!-- Progress Bar -->
+            <div class="progress" id="progress" style="display: none">
+                <div class="progress-bar" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" style="width: 0%;" id="progressbar">
+                    <!-- <span class="sr-only">60% Complete</span> -->
+                </div>
+            </div>
             <div class="container" id="uploader" style="display: none">
                 <div class="panel panel-default">
                     <div class="panel-heading"><strong>Send Files to <span id="receiver"></span></strong>
@@ -602,13 +625,13 @@
                             </div>
                         </form>
                         <!-- Upload Finished -->
-                        <div class="js-upload-finished">
+                        <!-- <div class="js-upload-finished">
                             <h3>Processed files</h3>
                             <div class="list-group">
                                 <a href="#" class="list-group-item list-group-item-success"><span class="badge alert-success pull-right">Success</span>image-01.jpg</a>
                                 <a href="#" class="list-group-item list-group-item-success"><span class="badge alert-success pull-right">Success</span>image-02.jpg</a>
                             </div>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
             </div>

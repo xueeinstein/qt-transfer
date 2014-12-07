@@ -88,10 +88,13 @@ class Controller(QObject):
             return
         elif action == "cometQuery":
             self.window.callback.alertQueries(msg.split('->')[1])
+        elif action == "reject":
+            pass
         elif action == "accept":
             q = self.window.callback.query
             q = json.loads(q)[0]
             sender = q['sender']
+            filename = q['filename']
             addr = (config.signal_server_host, 8888)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(addr)
@@ -99,8 +102,9 @@ class Controller(QObject):
             # send res to signal server
             res = 'accept->{"sender": "'+sender+'"}'
             self.post(res)
-            writefile = open('receive-file', 'wb')
+            writefile = open(filename, 'wb')
             print "wait to recv file..."
+            self.window.callback.sendSuccMsg("begin accept...")
             while True:
                 data = sock.recv(1024)
                 if data.endswith(b'FIN'):
@@ -111,6 +115,9 @@ class Controller(QObject):
             sock.send(b'ACK')
             print 
             writefile.close()
+            # move into transDir
+            os.rename(filename, "%s/%s"%(config.transferDir, filename))
+
             # # get sender address
             # q = self.window.callback.query
             # q = json.loads(q)[0]
@@ -164,6 +171,7 @@ class Controller(QObject):
             sendFile_addr = self.window.callback.fileAddr
             sock.connect(addr)
             print "connect TUN OK..."
+            self.window.callback.sendSuccMsg("user accept")
             data = open(sendFile_addr, 'rb').read()
             sock.sendall(data)
             sock.send(bytes('FIN'))
@@ -172,7 +180,10 @@ class Controller(QObject):
             # Get Acknowledgement
             sock.recv(6)
             print "got Acknowledgement"
+            self.window.callback.sendSuccMsg("send file finish")
             sock.close()
+        elif action == "notif":
+            self.notif(msg.split('->')[1])
         else:
             pass
         return
@@ -221,12 +232,17 @@ class Controller(QObject):
         self.window.callback.cometError(err)
         return
 
+    def notif(self, msg):
+        self.window.callback.sendSuccMsg(msg)
+        return
+
 class Callback(QObject):
     """Callback to font-end"""
     def __init__(self, Qo):
         super(Callback, self).__init__(Qo)
         self.window = Qo
         self.err = ""
+        self.succMsg = ""
         self.data = ""
         self.user = ""
         self.fileAddr = ""
@@ -237,6 +253,12 @@ class Callback(QObject):
         print "cometError"
         self.window.view.page().mainFrame().\
             evaluateJavaScript(QString("checkErr()"))
+        return
+
+    def sendSuccMsg(self, msg):
+        self.succMsg = msg
+        self.window.view.page().mainFrame().\
+            evaluateJavaScript(QString("succMsg()"))
         return
 
     def alertQueries(self, query):
@@ -272,6 +294,10 @@ class Callback(QObject):
     @pyqtSlot(result=str)
     def error(self):
         return self.err
+
+    @pyqtSlot(result=str)
+    def getsuccMsg(self):
+        return self.succMsg
 
     @pyqtSlot(result=str)
     def fileInfo(self):

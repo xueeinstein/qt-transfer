@@ -14,8 +14,8 @@ class Tun(threading.Thread):
 		self._stop = threading.Event()
 		self.sock_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.sock_1.bind(("localhost", port_1))
-		self.sock_2.bind(("localhost", port_2))
+		self.sock_1.bind(("0.0.0.0", port_1))
+		self.sock_2.bind(("0.0.0.0", port_2))
 		self.sock_1.listen(1)
 		self.sock_2.listen(1)
 
